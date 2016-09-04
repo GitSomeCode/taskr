@@ -1,0 +1,44 @@
+
+# Task Priority
+
+PRIORITY_LOWEST = 1
+PRIORITY_LOW = 2
+PRIORITY_MEDIUM = 3
+PRIORITY_HIGH = 4
+PRIORITY_HIGHEST = 5
+
+PRIORITY_CHOICES = (
+    (PRIORITY_LOWEST, 'Lowest'),
+    (PRIORITY_LOW, 'Low'),
+    (PRIORITY_MEDIUM, 'Medium'),
+    (PRIORITY_HIGH, 'High'),
+    (PRIORITY_HIGHEST, 'Highest'),
+)
+
+
+# Task Status
+
+STATUS_TODO = 1
+STATUS_IN_PROGRESS = 2
+STATUS_DONE = 3
+
+STATUS_CHOICES = (
+    (STATUS_TODO, 'Todo'),
+    (STATUS_IN_PROGRESS, 'In Progress'),
+    (STATUS_DONE, 'Done'),
+)
+
+
+# Task Event Type
+
+EVENT_CREATED = 1
+EVENT_EDITED = 2
+EVENT_STATUS_CHANGED = 3
+EVENT_ASSIGNED = 4
+
+EVENT_CHOICES = (
+    (EVENT_CREATED, 'Created'),
+    (EVENT_EDITED, 'Edited'),
+    (EVENT_STATUS_CHANGED, 'Status Changed'),
+    (EVENT_ASSIGNED, 'Assigned'),
+)
