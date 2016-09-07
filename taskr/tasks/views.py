@@ -128,15 +128,18 @@ class TaskAssign(APIView):
         task = get_object_or_404(Task, pk=pk)
         user = get_object_or_404(User, pk=request.data.get('user'))
 
-        if task.assignee.pk == user.pk:
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        else:
-            task.assignee = user
-            task.save()
+        # If user is already the assignee, do nothing.
+        if task.assignee:
+            if task.assignee.pk == user.pk:
+                return Response(status=status.HTTP_204_NO_CONTENT)
 
-            return Response(
-                TaskSerializer(task).data
-            )
+        # If user different than existing assignee or no assignee.
+        task.assignee = user
+        task.save()
+
+        return Response(
+            TaskSerializer(task).data
+        )
 
 
 class TaskChangeStatus(APIView):
