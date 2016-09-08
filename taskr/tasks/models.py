@@ -132,4 +132,4 @@ class TaskEventLog(models.Model):
         ordering = ['created_on']
 
     def __str__(self):
-        return '{}'.format(self.get_event_display())
+        return '{}-{}'.format(self.task.name[:20], self.get_event_display())

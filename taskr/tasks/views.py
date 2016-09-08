@@ -7,8 +7,16 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from config.paginators import CustomPagination
-from .models import Task
-from .serializers import TaskSerializer, TaskStatusSerializer
+from .enums import (
+    EVENT_CREATED, EVENT_EDITED,
+    EVENT_STATUS_CHANGED, EVENT_ASSIGNED
+)
+from .models import Task, TaskEventLog
+from .serializers import (
+    TaskSerializer,
+    TaskStatusSerializer,
+    TaskEventLogSerializer
+)
 
 
 User = get_user_model()
@@ -48,12 +56,24 @@ class TaskListCreate(generics.GenericAPIView):
         return Response(serializer.data)
 
     def post(self, request):
+        '''
+        Create a task.
+        '''
         task_serializer = TaskSerializer(data=request.data)
 
         if task_serializer.is_valid():
             task = Task(**task_serializer.validated_data)
             task.reporter = request.user
             task.save()
+
+            # Create TaskEventLog instance for create event.
+            log = TaskEventLog(
+                task=task,
+                user=request.user,
+                event=EVENT_CREATED,
+                description='Task created.'
+            )
+            log.save()
 
             return Response(
                 TaskSerializer(task).data,
@@ -96,6 +116,16 @@ class TaskDetail(APIView):
 
         if task_serializer.is_valid():
             task_serializer.save()
+
+            # Create TaskEventLog instance for update event.
+            log = TaskEventLog(
+                task=task,
+                user=request.user,
+                event=EVENT_EDITED,
+                description='Task edited.'
+            )
+            log.save()
+
             return Response(task_serializer.data)
 
         return Response(
@@ -126,13 +156,29 @@ class TaskAssign(APIView):
 
     def post(self, request, pk):
         task = get_object_or_404(Task, pk=pk)
-        user = get_object_or_404(User, pk=request.data.get('user'))
+        user = request.data.get('user')
 
+        # Check if user is an empty string.
+        try:
+            user = get_object_or_404(User, pk=user)
+        except ValueError:
+            user = None
+
+        # Check if user same as existing assignee.
         if task.assignee == user:
             return Response(status=status.HTTP_204_NO_CONTENT)
         else:
             task.assignee = user
             task.save()
+
+            # Create TaskEventLog instance for assign event.
+            log = TaskEventLog(
+                task=task,
+                user=request.user,
+                event=EVENT_ASSIGNED,
+                description='Task assigned to {}.'.format(user)
+            )
+            log.save()
 
             return Response(
                 TaskSerializer(task).data
@@ -156,10 +202,46 @@ class TaskChangeStatus(APIView):
         )
 
         if task_serializer.is_valid():
-            task = task_serializer.save()
-            return Response(TaskSerializer(task).data)
+            print(task_serializer)
+
+            # Check if new status same as existing status.
+            if int(request.data['status']) == task.status:
+                return Response(status=status.HTTP_204_NO_CONTENT)
+            else:
+                task = task_serializer.save()
+
+                # Create TaskEventLog instance for status change event.
+                log = TaskEventLog(
+                    task=task,
+                    user=request.user,
+                    event=EVENT_STATUS_CHANGED,
+                    description='Task status changed to "{}".'.format(
+                        task_serializer.data
+                    )
+                )
+                log.save()
+
+                return Response(TaskSerializer(task).data)
 
         return Response(
             task_serializer.errors,
             status=status.HTTP_400_BAD_REQUEST
         )
+
+
+class TaskEventLogList(APIView):
+    '''
+    Get event logs for a task.
+
+    * Requires token authentication.
+    '''
+    permission_classes = (IsAuthenticated,)
+
+    def get(self, request, pk):
+        task = get_object_or_404(Task, pk=pk)
+
+        logs = TaskEventLog.objects.select_related().filter(task=task)
+
+        logs_serializer = TaskEventLogSerializer(logs, many=True)
+
+        return Response(logs_serializer.data)

@@ -33,4 +33,10 @@ urlpatterns = [
         views.TaskChangeStatus.as_view(),
         name='task-change-status'
     ),
+
+    url(
+        r'^tasks/(?P<pk>\d+)/eventlogs/$',
+        views.TaskEventLogList.as_view(),
+        name='task-event-log'
+    ),
 ]

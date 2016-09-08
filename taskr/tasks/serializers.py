@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Task
+from .models import Task, TaskEventLog
 
 
 class TaskSerializer(serializers.ModelSerializer):
@@ -17,3 +17,9 @@ class TaskStatusSerializer(serializers.ModelSerializer):
     class Meta:
         model = Task
         fields = ('status',)
+
+
+class TaskEventLogSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TaskEventLog
+        fields = ('task', 'user', 'event', 'description')
