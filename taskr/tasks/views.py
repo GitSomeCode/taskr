@@ -128,7 +128,7 @@ class TaskAssign(APIView):
         task = get_object_or_404(Task, pk=pk)
         user = get_object_or_404(User, pk=request.data.get('user'))
 
-        if task.assignee.pk == user.pk:
+        if task.assignee == user:
             return Response(status=status.HTTP_204_NO_CONTENT)
         else:
             task.assignee = user
