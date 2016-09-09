@@ -251,6 +251,11 @@ class UserReports(APIView):
     '''
     Reporting task info for a user.
 
+    Counts tasks for each user that are
+      - created
+      - completed
+      - incompleted
+
     * Requires token authentication.
     '''
     permission_classes = (IsAuthenticated,)
