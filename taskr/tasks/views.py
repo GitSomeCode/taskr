@@ -223,7 +223,6 @@ class TaskChangeStatus(APIView):
 
                 return Response(TaskSerializer(task).data)
 
-        print(task_serializer.errors)
         return Response(
             task_serializer.errors,
             status=status.HTTP_400_BAD_REQUEST
@@ -237,7 +236,6 @@ class TaskEventLogList(APIView):
     * Requires token authentication.
     '''
     permission_classes = (IsAuthenticated,)
-    pagination_class = CustomPagination
 
     def get(self, request, pk):
         task = get_object_or_404(Task, pk=pk)
