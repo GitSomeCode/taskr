@@ -7,11 +7,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from . import enums
 from config.paginators import CustomPagination
-from .enums import (
-    EVENT_CREATED, EVENT_EDITED,
-    EVENT_STATUS_CHANGED, EVENT_ASSIGNED
-)
 from .models import Task, TaskEventLog
 from .serializers import (
     TaskSerializer,
@@ -71,7 +68,7 @@ class TaskListCreate(generics.GenericAPIView):
             log = TaskEventLog(
                 task=task,
                 user=request.user,
-                event=EVENT_CREATED,
+                event=enums.EVENT_CREATED,
                 description='Task created.'
             )
             log.save()
@@ -122,7 +119,7 @@ class TaskDetail(APIView):
             log = TaskEventLog(
                 task=task,
                 user=request.user,
-                event=EVENT_EDITED,
+                event=enums.EVENT_EDITED,
                 description='Task edited.'
             )
             log.save()
@@ -176,7 +173,7 @@ class TaskAssign(APIView):
             log = TaskEventLog(
                 task=task,
                 user=request.user,
-                event=EVENT_ASSIGNED,
+                event=enums.EVENT_ASSIGNED,
                 description='Task assigned to {}.'.format(user)
             )
             log.save()
@@ -214,7 +211,7 @@ class TaskChangeStatus(APIView):
                 log = TaskEventLog(
                     task=task,
                     user=request.user,
-                    event=EVENT_STATUS_CHANGED,
+                    event=enums.EVENT_STATUS_CHANGED,
                     description='Task status changed to "{}".'.format(
                         task_serializer.data
                     )
@@ -253,6 +250,7 @@ class UserReports(APIView):
 
     Counts tasks for each user that are
       - created
+      - assigned
       - completed
       - incompleted
 
@@ -268,16 +266,25 @@ class UserReports(APIView):
             Q(reporter=user) | Q(assignee=user)
         )
 
-        # Count created, completed, and incompleted tasks of a user.
-        created_tasks = user_tasks.filter(reporter=user).count()
+        # Count created tasks for a user.
+        created_count = user_tasks.filter(reporter=user).count()
+
+        # Count assigned, completed, incompleted tasks for a user.
+        # Derived from queryset of assigned tasks.
         assigned_tasks = user_tasks.filter(assignee=user)
-        completed_tasks = assigned_tasks.filter(status=3).count()
-        incompleted_tasks = assigned_tasks.filter(status__in=[1, 2]).count()
+        assigned_count = assigned_tasks.count()
+        completed_count = assigned_tasks.filter(
+            status=enums.STATUS_DONE
+        ).count()
+        incompleted_count = assigned_tasks.filter(
+            status__in=[enums.STATUS_TODO, enums.STATUS_IN_PROGRESS]
+        ).count()
 
         # Create response object.
         response = {}
-        response['created'] = created_tasks
-        response['completed'] = completed_tasks
-        response['incompleted'] = incompleted_tasks
+        response['created'] = created_count
+        response['assigned'] = assigned_count
+        response['completed'] = completed_count
+        response['incompleted'] = incompleted_count
 
         return Response(response, status=status.HTTP_200_OK)
