@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 
 from rest_framework import generics, status
@@ -202,10 +203,9 @@ class TaskChangeStatus(APIView):
         )
 
         if task_serializer.is_valid():
-            print(task_serializer)
 
             # Check if new status same as existing status.
-            if int(request.data['status']) == task.status:
+            if task_serializer.validated_data.get('status') == task.status:
                 return Response(status=status.HTTP_204_NO_CONTENT)
             else:
                 task = task_serializer.save()
@@ -223,6 +223,7 @@ class TaskChangeStatus(APIView):
 
                 return Response(TaskSerializer(task).data)
 
+        print(task_serializer.errors)
         return Response(
             task_serializer.errors,
             status=status.HTTP_400_BAD_REQUEST
@@ -236,6 +237,7 @@ class TaskEventLogList(APIView):
     * Requires token authentication.
     '''
     permission_classes = (IsAuthenticated,)
+    pagination_class = CustomPagination
 
     def get(self, request, pk):
         task = get_object_or_404(Task, pk=pk)
@@ -245,3 +247,34 @@ class TaskEventLogList(APIView):
         logs_serializer = TaskEventLogSerializer(logs, many=True)
 
         return Response(logs_serializer.data)
+
+
+class UserReports(APIView):
+    '''
+    Reporting task info for a user.
+
+    * Requires token authentication.
+    '''
+    permission_classes = (IsAuthenticated,)
+
+    def get(self, request, username):
+        user = get_object_or_404(User, username=username)
+
+        # Get queryset of tasks that user has created or assigned to.
+        user_tasks = Task.objects.filter(
+            Q(reporter=user) | Q(assignee=user)
+        )
+
+        # Count created, completed, and incompleted tasks of a user.
+        created_tasks = user_tasks.filter(reporter=user).count()
+        assigned_tasks = user_tasks.filter(assignee=user)
+        completed_tasks = assigned_tasks.filter(status=3).count()
+        incompleted_tasks = assigned_tasks.filter(status__in=[1, 2]).count()
+
+        # Create response object.
+        response = {}
+        response['created'] = created_tasks
+        response['completed'] = completed_tasks
+        response['incompleted'] = incompleted_tasks
+
+        return Response(response, status=status.HTTP_200_OK)
