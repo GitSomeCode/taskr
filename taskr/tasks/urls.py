@@ -39,10 +39,4 @@ urlpatterns = [
         views.TaskEventLogList.as_view(),
         name='task-event-log'
     ),
-
-    url(
-        r'^(?P<username>[\w-]+)/reports/$',
-        views.UserReports.as_view(),
-        name='user-reports'
-    ),
 ]
