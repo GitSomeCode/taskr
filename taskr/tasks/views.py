@@ -262,16 +262,14 @@ class UserReports(APIView):
         user = get_object_or_404(User, username=username)
 
         # Get queryset of tasks that user has created or assigned to.
-        user_tasks = Task.objects.filter(
-            Q(reporter=user) | Q(assignee=user)
-        )
+        tasks = Task.objects.all()
 
-        # Count created tasks for a user.
-        created_count = user_tasks.filter(reporter=user).count()
+        # Count the created tasks for a user.
+        created_count = tasks.filter(reporter=user).count()
 
-        # Count assigned, completed, incompleted tasks for a user.
+        # Count the assigned, completed, incompleted tasks for a user.
         # Derived from queryset of assigned tasks.
-        assigned_tasks = user_tasks.filter(assignee=user)
+        assigned_tasks = tasks.filter(assignee=user)
         assigned_count = assigned_tasks.count()
         completed_count = assigned_tasks.filter(
             status=enums.STATUS_DONE
