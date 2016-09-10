@@ -19,12 +19,20 @@ class TasksTest(APITestCase):
             is_superuser=True
         )
 
+        # Define headers
+        self.headers = {
+            'content-type': 'application/json',
+            'secret-message': 'my-secret-message',
+            'HTTP_AUTHORIZATION': 'Token {}'.format(self.user.auth_token.key)
+        }
+
     def test_get_tasks(self):
         url = reverse('task-list')
-        token = self.user.auth_token
 
-        self.client.credentials(HTTP_AUTHORIZATION='Token ' + token.key)
-
-        response = self.client.get(url)
-
+        # Check that status code for authorized request is OK.
+        response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # Check that status code for unauthorized request is UNAUTHORIZED.
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
