@@ -87,19 +87,21 @@ class TaskListCreate(generics.GenericAPIView):
         )
 
 
-class TaskDetail(APIView):
+class TaskDetail(generics.GenericAPIView):
     '''
     Get, update or delete a task.
 
     * Requires token authentication.
     '''
     permission_classes = (IsAuthenticated,)
+    queryset = Task.objects.all()
+    lookup_field = 'pk'
 
     def get(self, request, pk):
         '''
         Get task detail.
         '''
-        task = get_object_or_404(Task, pk=pk)
+        task = self.get_object()
         task_serializer = TaskSerializer(task)
 
         return Response(task_serializer.data)
@@ -108,7 +110,7 @@ class TaskDetail(APIView):
         '''
         Update task.
         '''
-        task = get_object_or_404(Task, pk=pk)
+        task = self.get_object()
         task_serializer = TaskSerializer(
             instance=task,
             data=request.data,
@@ -138,7 +140,7 @@ class TaskDetail(APIView):
         '''
         Delete task.
         '''
-        task = get_object_or_404(Task, pk=pk)
+        task = self.get_object()
         task.delete()
 
         return Response(
@@ -147,16 +149,18 @@ class TaskDetail(APIView):
         )
 
 
-class TaskAssign(APIView):
+class TaskAssign(generics.GenericAPIView):
     '''
     Assign a task to a User.
 
     * Requires token authentication.
     '''
     permission_classes = (IsAuthenticated,)
+    queryset = Task.objects.all()
+    lookup_field = 'pk'
 
     def post(self, request, pk):
-        task = get_object_or_404(Task, pk=pk)
+        task = self.get_object()
         user = request.data.get('user')
 
         # Check if user is an empty string.
@@ -186,16 +190,18 @@ class TaskAssign(APIView):
             )
 
 
-class TaskChangeStatus(APIView):
+class TaskChangeStatus(generics.GenericAPIView):
     '''
     Change the status of a Task.
 
     * Requires token authentication.
     '''
     permission_classes = (IsAuthenticated,)
+    queryset = Task.objects.all()
+    lookup_field = 'pk'
 
     def post(self, request, pk):
-        task = get_object_or_404(Task, pk=pk)
+        task = self.get_object()
         task_serializer = TaskStatusSerializer(
             task,
             data=request.data,
@@ -229,16 +235,18 @@ class TaskChangeStatus(APIView):
         )
 
 
-class TaskEventLogList(APIView):
+class TaskEventLogList(generics.GenericAPIView):
     '''
     Get event logs for a task.
 
     * Requires token authentication.
     '''
     permission_classes = (IsAuthenticated,)
+    queryset = Task.objects.all()
+    lookup_field = 'pk'
 
     def get(self, request, pk):
-        task = get_object_or_404(Task, pk=pk)
+        task = self.get_object()
 
         logs = TaskEventLog.objects.select_related().filter(task=task)
 
@@ -247,16 +255,19 @@ class TaskEventLogList(APIView):
         return Response(logs_serializer.data)
 
 
-class UserReports(APIView):
+class UserReports(generics.GenericAPIView):
     '''
     Reporting task info for a user.
 
     * Requires token authentication.
     '''
     permission_classes = (IsAuthenticated,)
+    queryset = User.objects.all()
+    lookup_field = 'username'
 
     def get(self, request, username):
-        user = get_object_or_404(User, username=username)
+
+        user = self.get_object()
 
         # Get queryset of tasks that user has created or assigned to.
         user_tasks = Task.objects.filter(
