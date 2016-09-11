@@ -104,7 +104,8 @@ class TaskDetail(APIView):
 
     def put(self, request, pk):
         '''
-        Update task.
+        Update a task's
+        name, description, category, priority.
         '''
         task = get_object_or_404(Task, pk=pk)
         task_serializer = TaskSerializer(

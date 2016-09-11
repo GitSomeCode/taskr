@@ -49,12 +49,12 @@ class TasksTest(APITestCase):
         return some_task
 
     def create_another_user(self):
-        other_user = User.objects.create(
+        other_user = User.objects.create_user(
             'dummyuser',
             'dummyemail@email.com',
             'dummyuser',
-            is_staff=False,
-            is_superuser=False
+            is_staff=True,
+            is_superuser=True
         )
         return other_user
 
@@ -126,6 +126,55 @@ class TasksTest(APITestCase):
 
         # Checks that a task cannot be retrieved by unauthorized user.
         response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        # Delete all tasks.
+        Task.objects.all().delete()
+
+    def test_update_task_detail(self):
+        '''
+        Test the PUT method on TaskDetail view.
+        Only update a task's name, description, category, priority.
+        '''
+        task_pk = 129
+        url = reverse('task-detail', kwargs={'pk': task_pk})
+        data = {
+            'name': 'a new and improved name!',
+            'description': 'a new and improved description!',
+            'category': 2,
+            'priority': 4
+        }
+
+        # Checks if not possible to update task that does not exist.
+        response = self.client.put(url, data, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+        # Checks if possible to update task that exists.
+        task = self.create_some_task()
+        url = reverse('task-detail', kwargs={'pk': task.pk})
+
+        response = self.client.put(url, data, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # Check that you cannot update reporter, assignee, status field.
+        other_user = self.create_another_user()
+
+        # ... read-only fields cannot be changed.
+        data2 = {
+            'reporter': other_user.pk,
+            'assignee': other_user.pk,
+            'status': 3
+        }
+
+        # ... getting updated task data from previous response.
+        task_data = response.data
+
+        # ... tries to update task with read-only fields
+        response = self.client.put(url, data2, **self.headers)
+        self.assertEqual(response.data, task_data)
+
+        # Checks that a task cannot be updated by unauthorized user.
+        response = self.client.put(url, data)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
         # Delete all tasks.
