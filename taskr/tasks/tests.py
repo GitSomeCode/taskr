@@ -4,7 +4,8 @@ from django.core.urlresolvers import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from .models import Task
+from .models import Task, TaskCategory
+from .serializers import TaskSerializer
 
 User = get_user_model()
 
@@ -26,7 +27,42 @@ class TasksTest(APITestCase):
             'HTTP_AUTHORIZATION': 'Token {}'.format(self.user.auth_token.key)
         }
 
+    def create_some_task(self, **kwargs):
+        '''
+        By default creates a task with
+            name = "some task", description = "some description",
+            category = "general", priority = "medium", status = "todo",
+            reporter = self.user, assignee = None
+        '''
+        some_task = Task.objects.create(
+            name=kwargs.get('name', 'some task'),
+            description=kwargs.get('description', 'some description'),
+            category=kwargs.get(
+                'category',
+                TaskCategory.objects.get(name='General')
+            ),
+            priority=kwargs.get('priority', 3),
+            status=kwargs.get('status', 1),
+            reporter=kwargs.get('reporter', self.user),
+            assignee=kwargs.get('assignee', None)
+        )
+        return some_task
+
+    def create_another_user(self):
+        other_user = User.objects.create(
+            'dummyuser',
+            'dummyemail@email.com',
+            'dummyuser',
+            is_staff=False,
+            is_superuser=False
+        )
+        return other_user
+
     def test_get_tasks(self):
+        '''
+        Test the GET method on TaskListCreate view
+        with authorized and unauthorized users.
+        '''
         url = reverse('task-list')
 
         # Check that status code for authorized request is OK.
@@ -38,6 +74,10 @@ class TasksTest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_create_tasks(self):
+        '''
+        Test the POST method on TaskListCreate view.
+        Creates a task and check if it exists.
+        '''
         url = reverse('task-list')
         data = {
             'name': 'Test Task 1',
@@ -58,3 +98,35 @@ class TasksTest(APITestCase):
         # Check that task cannot be created by unauthorized user.
         response = self.client.post(url, data)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        # Delete all tasks.
+        Task.objects.all().delete()
+
+    def test_get_task_detail(self):
+        '''
+        Test the GET method on TaskDetail view.
+        '''
+        task_pk = 11
+        url = reverse('task-detail', kwargs={'pk': task_pk})
+
+        # Checks if not possible to get task that does not exist.
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+        # Checks if possible to get task that does exist.
+        task = self.create_some_task()
+        url = reverse('task-detail', kwargs={'pk': task.pk})
+
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # Check response data.
+        expected_response = TaskSerializer(task).data
+        self.assertEqual(response.data, expected_response)
+
+        # Checks that a task cannot be retrieved by unauthorized user.
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        # Delete all tasks.
+        Task.objects.all().delete()
