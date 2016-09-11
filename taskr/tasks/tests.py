@@ -36,3 +36,25 @@ class TasksTest(APITestCase):
         # Check that status code for unauthorized request is UNAUTHORIZED.
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_create_tasks(self):
+        url = reverse('task-list')
+        data = {
+            'name': 'Test Task 1',
+            'description': 'Do this task first',
+            'category': 1,
+            'priority': 3,
+            'status': 1,
+            'reporter': self.user.pk,
+            'assignee': None
+        }
+
+        # Check that task is created successfully by authorized user.
+        response = self.client.post(url, data, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Task.objects.count(), 1)
+        self.assertEqual(self.user.created_tasks.count(), 1)
+
+        # Check that task cannot be created by unauthorized user.
+        response = self.client.post(url, data)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
