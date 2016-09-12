@@ -117,12 +117,12 @@ class TasksTest(APITestCase):
         # Check that read-only fields are not changed.
         response_object = json.loads(response.content)
 
-        # ... posted values 'status', 'reporter', 'assignee' were not set.
+        # ... posted values 'status', 'reporter', 'assignee' were not set
         self.assertNotEqual(response_object.get('status'), 3)
         self.assertNotEqual(response_object.get('reporter'), other_user.pk)
         self.assertNotEqual(response_object.get('assignee'), other_user.pk)
 
-        # ... check the set values of created task.
+        # ... check the set values of created task
         self.assertEqual(response_object.get('status'), 1)
         self.assertEqual(response_object.get('reporter'), self.user.pk)
         self.assertEqual(response_object.get('assignee'), None)
@@ -185,14 +185,14 @@ class TasksTest(APITestCase):
         # Check that you cannot update reporter, assignee, status field.
         other_user = self.create_another_user()
 
-        # ... read-only fields cannot be changed.
+        # ... read-only fields cannot be changed
         data2 = {
             'reporter': other_user.pk,
             'assignee': other_user.pk,
             'status': 3
         }
 
-        # ... getting updated task data from previous response.
+        # ... getting updated task data from previous response
         task_data = response.data
 
         # ... tries to update task with read-only fields
@@ -249,7 +249,7 @@ class TasksTest(APITestCase):
         response = self.client.post(url, data, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-        # ... get updated task object from response.
+        # ... get updated task response object
         response_object = json.loads(response.content)
         self.assertEqual(response_object.get('assignee'), other_user.pk)
 
@@ -262,7 +262,7 @@ class TasksTest(APITestCase):
         response = self.client.post(url, data, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-        # ... get updated task object from response.
+        # ... get updated task response object
         response_object = json.loads(response.content)
         self.assertEqual(response_object.get('assignee'), None)
 
@@ -296,7 +296,7 @@ class TasksTest(APITestCase):
         response = self.client.post(url, data2, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-        # Check cannot change task status by unauthorized user
+        # Check cannot change task status by unauthorized user.
         response = self.client.post(url, data)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
@@ -313,48 +313,158 @@ class TasksTest(APITestCase):
         self.assertEqual(task.status, 1)
         response = self.client.post(url, progress_status, **self.headers)
 
-        #    ... get updated task object from response.
+        #    ... get updated task response object
         response_object = json.loads(response.content)
         self.assertEqual(response_object.get('status'), 2)
 
         # ... IN PROGRESS -> DONE
         response = self.client.post(url, done_status, **self.headers)
 
-        #    ... get updated task object from response.
+        #    ... get updated task response object
         response_object = json.loads(response.content)
         self.assertEqual(response_object.get('status'), 3)
 
         # ... DONE -> IN PROGRESS
         response = self.client.post(url, progress_status, **self.headers)
 
-        #    ... get updated task object from response.
+        #    ... get updated task response object
         response_object = json.loads(response.content)
         self.assertEqual(response_object.get('status'), 2)
 
         # ... IN PROGRESS -> TODO
         response = self.client.post(url, todo_status, **self.headers)
 
-        #    ... get updated task object from response.
+        #    ... get updated task response object
         response_object = json.loads(response.content)
         self.assertEqual(response_object.get('status'), 1)
 
         # ... DONE -> TODO
 
-        #    ... change task status to done.
+        #    ... change task status to done
         response = self.client.post(url, done_status, **self.headers)
         response_object = json.loads(response.content)
         self.assertEqual(response_object.get('status'), 3)
 
-        #    ... change task status to todo.
+        #    ... change task status to todo
         response = self.client.post(url, todo_status, **self.headers)
 
-        #    ... get updated task object from response.
+        #    ... get updated task response object
         response_object = json.loads(response.content)
         self.assertEqual(response_object.get('status'), 1)
 
         # ... TODO -> DONE
         response = self.client.post(url, done_status, **self.headers)
 
-        #    ... get updated task object from response.
+        #    ... get updated task response object
         response_object = json.loads(response.content)
         self.assertEqual(response_object.get('status'), 3)
+
+    def test_get_task_event_logs(self):
+        '''
+        Test the GET method of TaskEventLogList view.
+        '''
+        task_pk = 298
+        url = reverse('task-event-log', kwargs={'pk': task_pk})
+
+        # Check event logs of task that doesn't exist.
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+        # Create a task and check event log.
+        task = self.create_some_task()
+        url = reverse('task-event-log', kwargs={'pk': task.pk})
+
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # ... get updated task response object
+        #    ... response object is a list of task event dicts
+        response_object = json.loads(response.content)
+        event_log_count = TaskEventLog.objects.filter(task__pk=task.pk).count()
+        self.assertEqual(len(response_object), event_log_count)
+
+        # ... check last event log dict and check event value
+        self.assertEqual(response_object[-1].get('event'), 1)
+
+        # Update a task and check event log.
+        update_data = {
+            'name': 'a new and improved name!',
+            'description': 'a new and improved description!',
+            'category': 2,
+            'priority': 4
+        }
+        update_url = reverse('task-detail', kwargs={'pk': task.pk})
+
+        update_response = self.client.put(
+            update_url, update_data,
+            **self.headers
+        )
+        self.assertEqual(update_response.status_code, status.HTTP_200_OK)
+
+        # ... get event logs for this task
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # ... get updated task response object
+        response_object = json.loads(response.content)
+        event_log_count = TaskEventLog.objects.filter(task__pk=task.pk).count()
+        self.assertEqual(len(response_object), event_log_count)
+
+        # ... check last event log dict and check event value
+        self.assertEqual(response_object[-1].get('event'), 2)
+
+        # Assign a task and check event log.
+        assign_url = reverse('task-assign', kwargs={'pk': task.pk})
+        assign_data = {'user': self.user.pk}
+
+        assign_response = self.client.post(
+            assign_url, assign_data, **self.headers
+        )
+        self.assertEqual(assign_response.status_code, status.HTTP_200_OK)
+
+        # ... get event logs for this task
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # ... get updated task object from response
+        response_object = json.loads(response.content)
+        event_log_count = TaskEventLog.objects.filter(task__pk=task.pk).count()
+        self.assertEqual(len(response_object), event_log_count)
+
+        # ... check last event log dict and check event value
+        self.assertEqual(response_object[-1].get('event'), 4)
+
+        # Change status and check event log.
+        change_status_url = reverse(
+            'task-change-status',
+            kwargs={'pk': task.pk}
+        )
+        change_status_data = {'status': 2}
+
+        change_status_response = self.client.post(
+            change_status_url, change_status_data, **self.headers
+        )
+        self.assertEqual(
+            change_status_response.status_code, status.HTTP_200_OK
+        )
+
+        # ... get event logs for this task
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # ... get updated task object from response
+        response_object = json.loads(response.content)
+        event_log_count = TaskEventLog.objects.filter(task__pk=task.pk).count()
+        self.assertEqual(len(response_object), event_log_count)
+
+        # ... check last event log dict and check event value
+        self.assertEqual(response_object[-1].get('event'), 3)
+
+        # Check task event logs by unauthorized user.
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        # Delete task and check that event logs were deleted too.
+        Task.objects.get(pk=task.pk).delete()
+        event_log_count = TaskEventLog.objects.filter(task__pk=task.pk).count()
+        self.assertEqual(event_log_count, 0)
