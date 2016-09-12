@@ -221,6 +221,9 @@ class TasksTest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(Task.objects.filter(pk=task.pk).exists(), False)
 
+        # Delete all tasks.
+        Task.objects.all().delete()
+
     def test_post_task_assign(self):
         '''
         Test the POST method on TaskAssign view.
@@ -256,3 +259,17 @@ class TasksTest(APITestCase):
         # ... get updated task object from response.
         response_object = json.loads(response.content)
         self.assertEqual(response_object.get('assignee'), None)
+
+        # Check assign task to user that doesn't exist.
+        data = {'user': 297}
+        response = self.client.post(url, data, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+        # Check cannot assign task by unauthorized user.
+        data = {'user': ''}
+        response = self.client.post(url, data)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        # Delete all tasks and users.
+        Task.objects.all().delete()
+        User.objects.all().delete()
