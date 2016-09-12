@@ -179,3 +179,30 @@ class TasksTest(APITestCase):
 
         # Delete all tasks.
         Task.objects.all().delete()
+
+    def test_delete_task_detail(self):
+        '''
+        Test the DELETE method on TaskDetail view.
+        '''
+        task_pk = 71
+        url = reverse('task-detail', kwargs={'pk': task_pk})
+
+        # Checks if not possible to delete task that does not exist.
+        response = self.client.delete(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+        task = self.create_some_task()
+        url = reverse('task-detail', kwargs={'pk': task.pk})
+
+        # Checks that a task cannot be deleted by unauthorized user.
+        response = self.client.delete(url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        # ... check that the created task objects exist
+        self.assertEqual(Task.objects.filter(pk=task.pk).exists(), True)
+
+        # Checks if possible to delete a task that exists.
+        response = self.client.delete(url, **self.headers)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(Task.objects.filter(pk=task.pk).exists(), False)
