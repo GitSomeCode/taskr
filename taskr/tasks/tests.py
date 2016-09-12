@@ -177,8 +177,9 @@ class TasksTest(APITestCase):
         response = self.client.put(url, data)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
-        # Delete all tasks.
+        # Delete all tasks and users.
         Task.objects.all().delete()
+        User.objects.all().delete()
 
     def test_delete_task_detail(self):
         '''
