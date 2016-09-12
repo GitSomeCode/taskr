@@ -1,10 +1,13 @@
+import json
+
 from django.contrib.auth import get_user_model
 from django.core.urlresolvers import reverse
 
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from .models import Task, TaskCategory
+from . import enums
+from .models import Task, TaskCategory, TaskEventLog
 from .serializers import TaskSerializer
 
 User = get_user_model()
@@ -46,6 +49,16 @@ class TasksTest(APITestCase):
             reporter=kwargs.get('reporter', self.user),
             assignee=kwargs.get('assignee', None)
         )
+
+        # Create TaskEventLog instance for create event.
+        log = TaskEventLog(
+            task=some_task,
+            user=self.user,
+            event=enums.EVENT_CREATED,
+            description='Task created.'
+        )
+        log.save()
+
         return some_task
 
     def create_another_user(self):
@@ -199,7 +212,7 @@ class TasksTest(APITestCase):
         response = self.client.delete(url)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
-        # ... check that the created task objects exist
+        # ... check that the created task object exist
         self.assertEqual(Task.objects.filter(pk=task.pk).exists(), True)
 
         # Checks if possible to delete a task that exists.
@@ -207,3 +220,39 @@ class TasksTest(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(Task.objects.filter(pk=task.pk).exists(), False)
+
+    def test_post_task_assign(self):
+        '''
+        Test the POST method on TaskAssign view.
+        '''
+        task = self.create_some_task()
+        url = reverse('task-assign', kwargs={'pk': task.pk})
+        data = {'user': ''}
+
+        # Check assign no user to task with no assignee.
+        response = self.client.post(url, data, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+        # Check assign user to task with no assignee.
+        other_user = self.create_another_user()
+        data = {'user': other_user.pk}
+
+        response = self.client.post(url, data, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # ... get updated task object from response.
+        response_object = json.loads(response.content)
+        self.assertEqual(response_object.get('assignee'), other_user.pk)
+
+        # Check assign same user again to task.
+        response = self.client.post(url, data, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+        # Check assign task to no one when previously assigned.
+        data = {'user': ''}
+        response = self.client.post(url, data, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # ... get updated task object from response.
+        response_object = json.loads(response.content)
+        self.assertEqual(response_object.get('assignee'), None)
