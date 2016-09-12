@@ -112,9 +112,6 @@ class TasksTest(APITestCase):
         response = self.client.post(url, data)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
-        # Delete all tasks.
-        Task.objects.all().delete()
-
     def test_get_task_detail(self):
         '''
         Test the GET method on TaskDetail view.
@@ -140,9 +137,6 @@ class TasksTest(APITestCase):
         # Checks that a task cannot be retrieved by unauthorized user.
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-
-        # Delete all tasks.
-        Task.objects.all().delete()
 
     def test_update_task_detail(self):
         '''
@@ -190,10 +184,6 @@ class TasksTest(APITestCase):
         response = self.client.put(url, data)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
-        # Delete all tasks and users.
-        Task.objects.all().delete()
-        User.objects.all().delete()
-
     def test_delete_task_detail(self):
         '''
         Test the DELETE method on TaskDetail view.
@@ -220,9 +210,6 @@ class TasksTest(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(Task.objects.filter(pk=task.pk).exists(), False)
-
-        # Delete all tasks.
-        Task.objects.all().delete()
 
     def test_post_task_assign(self):
         '''
@@ -269,7 +256,3 @@ class TasksTest(APITestCase):
         data = {'user': ''}
         response = self.client.post(url, data)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-
-        # Delete all tasks and users.
-        Task.objects.all().delete()
-        User.objects.all().delete()
