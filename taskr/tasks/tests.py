@@ -92,14 +92,20 @@ class TasksTest(APITestCase):
         Creates a task and check if it exists.
         '''
         url = reverse('task-list')
+        other_user = self.create_another_user()
+
         data = {
             'name': 'Test Task 1',
             'description': 'Do this task first',
             'category': 1,
             'priority': 3,
-            'status': 1,
-            'reporter': self.user.pk,
-            'assignee': None
+            # Below -- status, reporter, assignee are read-only fields!
+            # By default, tasks are created where
+            # status is 1 (todo), assignee is None
+            # and reporter is current authenticated user.
+            'status': 3,
+            'reporter': other_user.pk,
+            'assignee': other_user.pk
         }
 
         # Check that task is created successfully by authorized user.
@@ -107,6 +113,19 @@ class TasksTest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(Task.objects.count(), 1)
         self.assertEqual(self.user.created_tasks.count(), 1)
+
+        # Check that read-only fields are not changed.
+        response_object = json.loads(response.content)
+
+        # ... posted values 'status', 'reporter', 'assignee' were not set.
+        self.assertNotEqual(response_object.get('status'), 3)
+        self.assertNotEqual(response_object.get('reporter'), other_user.pk)
+        self.assertNotEqual(response_object.get('assignee'), other_user.pk)
+
+        # ... check the set values of created task.
+        self.assertEqual(response_object.get('status'), 1)
+        self.assertEqual(response_object.get('reporter'), self.user.pk)
+        self.assertEqual(response_object.get('assignee'), None)
 
         # Check that task cannot be created by unauthorized user.
         response = self.client.post(url, data)
