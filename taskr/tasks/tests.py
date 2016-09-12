@@ -275,3 +275,86 @@ class TasksTest(APITestCase):
         data = {'user': ''}
         response = self.client.post(url, data)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_post_task_status(self):
+        '''
+        Test the POST method of TaskChangeStatus view.
+        '''
+        task_pk = 89
+        url = reverse('task-change-status', kwargs={'pk': task_pk})
+        data = {'status': 2}
+
+        # Check change status to task that doesn't exist.
+        response = self.client.post(url, data, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+        # Check change task to an invalid status.
+        task = self.create_some_task()
+        url = reverse('task-change-status', kwargs={'pk': task.pk})
+        data2 = {'status': 12}
+
+        response = self.client.post(url, data2, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        # Check cannot change task status by unauthorized user
+        response = self.client.post(url, data)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        # Check that you can perform the following status transitions:
+        # todo -> in progress, in progress -> done
+        # done -> in progress, in progress -> todo
+        # done -> todo, todo -> done
+
+        todo_status = {'status': 1}
+        progress_status = {'status': 2}
+        done_status = {'status': 3}
+
+        # ... TODO -> IN PROGRESS
+        self.assertEqual(task.status, 1)
+        response = self.client.post(url, progress_status, **self.headers)
+
+        #    ... get updated task object from response.
+        response_object = json.loads(response.content)
+        self.assertEqual(response_object.get('status'), 2)
+
+        # ... IN PROGRESS -> DONE
+        response = self.client.post(url, done_status, **self.headers)
+
+        #    ... get updated task object from response.
+        response_object = json.loads(response.content)
+        self.assertEqual(response_object.get('status'), 3)
+
+        # ... DONE -> IN PROGRESS
+        response = self.client.post(url, progress_status, **self.headers)
+
+        #    ... get updated task object from response.
+        response_object = json.loads(response.content)
+        self.assertEqual(response_object.get('status'), 2)
+
+        # ... IN PROGRESS -> TODO
+        response = self.client.post(url, todo_status, **self.headers)
+
+        #    ... get updated task object from response.
+        response_object = json.loads(response.content)
+        self.assertEqual(response_object.get('status'), 1)
+
+        # ... DONE -> TODO
+
+        #    ... change task status to done.
+        response = self.client.post(url, done_status, **self.headers)
+        response_object = json.loads(response.content)
+        self.assertEqual(response_object.get('status'), 3)
+
+        #    ... change task status to todo.
+        response = self.client.post(url, todo_status, **self.headers)
+
+        #    ... get updated task object from response.
+        response_object = json.loads(response.content)
+        self.assertEqual(response_object.get('status'), 1)
+
+        # ... TODO -> DONE
+        response = self.client.post(url, done_status, **self.headers)
+
+        #    ... get updated task object from response.
+        response_object = json.loads(response.content)
+        self.assertEqual(response_object.get('status'), 3)
