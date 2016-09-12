@@ -30,6 +30,10 @@ class TasksTest(APITestCase):
             'HTTP_AUTHORIZATION': 'Token {}'.format(self.user.auth_token.key)
         }
 
+    def get_task_category_pk(self, name):
+        category_pk = TaskCategory.objects.get(name=name).pk
+        return category_pk
+
     def create_some_task(self, **kwargs):
         '''
         By default creates a task with
@@ -44,8 +48,8 @@ class TasksTest(APITestCase):
                 'category',
                 TaskCategory.objects.get(name='General')
             ),
-            priority=kwargs.get('priority', 3),
-            status=kwargs.get('status', 1),
+            priority=kwargs.get('priority', enums.PRIORITY_MEDIUM),
+            status=kwargs.get('status', enums.STATUS_TODO),
             reporter=kwargs.get('reporter', self.user),
             assignee=kwargs.get('assignee', None)
         )
@@ -97,13 +101,13 @@ class TasksTest(APITestCase):
         data = {
             'name': 'Test Task 1',
             'description': 'Do this task first',
-            'category': 1,
-            'priority': 3,
+            'category': self.get_task_category_pk('General'),
+            'priority': enums.PRIORITY_MEDIUM,
             # Below -- status, reporter, assignee are read-only fields!
             # By default, tasks are created where
             # status is 1 (todo), assignee is None
             # and reporter is current authenticated user.
-            'status': 3,
+            'status': enums.STATUS_DONE,
             'reporter': other_user.pk,
             'assignee': other_user.pk
         }
@@ -118,12 +122,12 @@ class TasksTest(APITestCase):
         response_object = json.loads(response.content)
 
         # ... posted values 'status', 'reporter', 'assignee' were not set
-        self.assertNotEqual(response_object.get('status'), 3)
+        self.assertNotEqual(response_object.get('status'), enums.STATUS_DONE)
         self.assertNotEqual(response_object.get('reporter'), other_user.pk)
         self.assertNotEqual(response_object.get('assignee'), other_user.pk)
 
         # ... check the set values of created task
-        self.assertEqual(response_object.get('status'), 1)
+        self.assertEqual(response_object.get('status'), enums.STATUS_TODO)
         self.assertEqual(response_object.get('reporter'), self.user.pk)
         self.assertEqual(response_object.get('assignee'), None)
 
@@ -167,8 +171,8 @@ class TasksTest(APITestCase):
         data = {
             'name': 'a new and improved name!',
             'description': 'a new and improved description!',
-            'category': 2,
-            'priority': 4
+            'category': self.get_task_category_pk('Enhancement'),
+            'priority': enums.PRIORITY_HIGH
         }
 
         # Checks if not possible to update task that does not exist.
@@ -189,7 +193,7 @@ class TasksTest(APITestCase):
         data2 = {
             'reporter': other_user.pk,
             'assignee': other_user.pk,
-            'status': 3
+            'status': enums.STATUS_DONE
         }
 
         # ... getting updated task data from previous response
@@ -282,7 +286,7 @@ class TasksTest(APITestCase):
         '''
         task_pk = 89
         url = reverse('task-change-status', kwargs={'pk': task_pk})
-        data = {'status': 2}
+        data = {'status': enums.STATUS_IN_PROGRESS}
 
         # Check change status to task that doesn't exist.
         response = self.client.post(url, data, **self.headers)
@@ -305,59 +309,63 @@ class TasksTest(APITestCase):
         # done -> in progress, in progress -> todo
         # done -> todo, todo -> done
 
-        todo_status = {'status': 1}
-        progress_status = {'status': 2}
-        done_status = {'status': 3}
+        todo_status = {'status': enums.STATUS_TODO}
+        progress_status = {'status': enums.STATUS_IN_PROGRESS}
+        done_status = {'status': enums.STATUS_DONE}
 
         # ... TODO -> IN PROGRESS
-        self.assertEqual(task.status, 1)
+        self.assertEqual(task.status, enums.STATUS_TODO)
         response = self.client.post(url, progress_status, **self.headers)
 
         #    ... get updated task response object
         response_object = json.loads(response.content)
-        self.assertEqual(response_object.get('status'), 2)
+        self.assertEqual(
+            response_object.get('status'), enums.STATUS_IN_PROGRESS
+        )
 
         # ... IN PROGRESS -> DONE
         response = self.client.post(url, done_status, **self.headers)
 
         #    ... get updated task response object
         response_object = json.loads(response.content)
-        self.assertEqual(response_object.get('status'), 3)
+        self.assertEqual(response_object.get('status'), enums.STATUS_DONE)
 
         # ... DONE -> IN PROGRESS
         response = self.client.post(url, progress_status, **self.headers)
 
         #    ... get updated task response object
         response_object = json.loads(response.content)
-        self.assertEqual(response_object.get('status'), 2)
+        self.assertEqual(
+            response_object.get('status'), enums.STATUS_IN_PROGRESS
+        )
 
         # ... IN PROGRESS -> TODO
         response = self.client.post(url, todo_status, **self.headers)
 
         #    ... get updated task response object
         response_object = json.loads(response.content)
-        self.assertEqual(response_object.get('status'), 1)
+        self.assertEqual(response_object.get('status'), enums.STATUS_TODO)
 
         # ... DONE -> TODO
 
         #    ... change task status to done
         response = self.client.post(url, done_status, **self.headers)
         response_object = json.loads(response.content)
-        self.assertEqual(response_object.get('status'), 3)
+        self.assertEqual(response_object.get('status'), enums.STATUS_DONE)
 
         #    ... change task status to todo
         response = self.client.post(url, todo_status, **self.headers)
 
         #    ... get updated task response object
         response_object = json.loads(response.content)
-        self.assertEqual(response_object.get('status'), 1)
+        self.assertEqual(response_object.get('status'), enums.STATUS_TODO)
 
         # ... TODO -> DONE
         response = self.client.post(url, done_status, **self.headers)
 
         #    ... get updated task response object
         response_object = json.loads(response.content)
-        self.assertEqual(response_object.get('status'), 3)
+        self.assertEqual(response_object.get('status'), enums.STATUS_DONE)
 
     def test_get_task_event_logs(self):
         '''
@@ -384,14 +392,14 @@ class TasksTest(APITestCase):
         self.assertEqual(len(response_object), event_log_count)
 
         # ... check last event log dict and check event value
-        self.assertEqual(response_object[-1].get('event'), 1)
+        self.assertEqual(response_object[-1].get('event'), enums.EVENT_CREATED)
 
         # Update a task and check event log.
         update_data = {
             'name': 'a new and improved name!',
             'description': 'a new and improved description!',
-            'category': 2,
-            'priority': 4
+            'category': self.get_task_category_pk('Bug'),
+            'priority': enums.PRIORITY_HIGH
         }
         update_url = reverse('task-detail', kwargs={'pk': task.pk})
 
@@ -411,7 +419,7 @@ class TasksTest(APITestCase):
         self.assertEqual(len(response_object), event_log_count)
 
         # ... check last event log dict and check event value
-        self.assertEqual(response_object[-1].get('event'), 2)
+        self.assertEqual(response_object[-1].get('event'), enums.EVENT_EDITED)
 
         # Assign a task and check event log.
         assign_url = reverse('task-assign', kwargs={'pk': task.pk})
@@ -432,14 +440,16 @@ class TasksTest(APITestCase):
         self.assertEqual(len(response_object), event_log_count)
 
         # ... check last event log dict and check event value
-        self.assertEqual(response_object[-1].get('event'), 4)
+        self.assertEqual(
+            response_object[-1].get('event'), enums.EVENT_ASSIGNED
+        )
 
         # Change status and check event log.
         change_status_url = reverse(
             'task-change-status',
             kwargs={'pk': task.pk}
         )
-        change_status_data = {'status': 2}
+        change_status_data = {'status': enums.STATUS_IN_PROGRESS}
 
         change_status_response = self.client.post(
             change_status_url, change_status_data, **self.headers
@@ -458,7 +468,9 @@ class TasksTest(APITestCase):
         self.assertEqual(len(response_object), event_log_count)
 
         # ... check last event log dict and check event value
-        self.assertEqual(response_object[-1].get('event'), 3)
+        self.assertEqual(
+            response_object[-1].get('event'), enums.EVENT_STATUS_CHANGED
+        )
 
         # Check task event logs by unauthorized user.
         response = self.client.get(url)
