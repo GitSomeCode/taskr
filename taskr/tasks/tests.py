@@ -65,11 +65,11 @@ class TasksTest(APITestCase):
 
         return some_task
 
-    def create_another_user(self):
+    def create_another_user(self, **kwargs):
         other_user = User.objects.create_user(
-            'dummyuser',
-            'dummyemail@email.com',
-            'dummyuser',
+            username=kwargs.get('username', 'dummyuser'),
+            email=kwargs.get('email', 'dummyemail@email.com'),
+            password=kwargs.get('password', 'dummyuser'),
             is_staff=True,
             is_superuser=True
         )
