@@ -118,7 +118,8 @@ class TasksTest(APITestCase):
         self.assertEqual(Task.objects.count(), 1)
         self.assertEqual(self.user.created_tasks.count(), 1)
 
-        # Check that read-only fields are not changed.
+        # Check that read-only fields have not changed.
+        # ... get updated task response object.
         response_object = json.loads(response.content)
 
         # ... posted values 'status', 'reporter', 'assignee' were not set

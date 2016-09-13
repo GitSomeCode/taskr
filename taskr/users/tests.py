@@ -73,6 +73,9 @@ class UsersTest(APITestCase):
         return other_user
 
     def create_dummy_user_report(self, **kwargs):
+        '''
+        Create an expected response for user reports view.
+        '''
         dummy_response = {
             'assigned': kwargs.get('assigned', 0),
             'completed': kwargs.get('completed', 0),
@@ -83,7 +86,7 @@ class UsersTest(APITestCase):
 
     def test_get_unauthorized_user_report(self):
         '''
-        Test the GET method of UserReports view.
+        Test the GET method of UserReports view without headers.
         Checks that unauthorized user cannot get user report.
         '''
         response = self.client.get(self.url)
@@ -97,10 +100,10 @@ class UsersTest(APITestCase):
         '''
         response = self.client.get(self.url, **self.headers)
 
-        # empty user reports dictionary object.
+        # create empty user report object.
         expected_response = self.create_dummy_user_report()
 
-        # get updated task object from response.
+        # get response object.
         response_object = json.loads(response.content)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -138,7 +141,7 @@ class UsersTest(APITestCase):
         t2.status = enums.STATUS_DONE
         t2.save(update_fields=['assignee', 'status'])
 
-        # user reports dictionary object.
+        # create user report object.
         expected_response = self.create_dummy_user_report(
             assigned=2, created=1,
             completed=1, incompleted=1
@@ -146,7 +149,7 @@ class UsersTest(APITestCase):
 
         response = self.client.get(self.url, **self.headers)
 
-        # get updated task object from response.
+        # get response object.
         response_object = json.loads(response.content)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
